@@ -3,5 +3,5 @@ client/.angular/
 client/dist/
 .idea/
 **/target/
-src/environments/environment.ts
-src/environments/environment.prod.ts
+client/src/environments/environment.ts
+client/src/environments/environment.prod.ts

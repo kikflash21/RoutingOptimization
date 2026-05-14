@@ -6,7 +6,7 @@ import { extractAdressesFromApiGouvResponseString } from '../utils/extractAdress
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 //import { orsKey } from './orsKey';
-import { environment } from '../../environemments/environment';
+import { environment } from '../../environments/environment';
 import { OptimizationResult, parseOptimizationResultP, RouteStepBase } from './OptimizationResult';
 import { GeoJSONFeatureCollectionSchema, GeoJSONLineStringSchema } from 'zod-geojson';
 

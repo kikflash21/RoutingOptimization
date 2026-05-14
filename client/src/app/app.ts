@@ -28,7 +28,7 @@ import { MatriceStorageService } from './services/MatriceStorageService';
 import { GreedyService, GreedyClusterResult } from './services/GreedyService';
 import { getCrossMarker, getDepotMarker, getMarker } from './utils/marker';
 //import { orsKey } from './services/orsKey';
-import { environment } from '../environemments/environment';
+import { environment } from '../environments/environment';
 
 import {
   AlgorithmType,
