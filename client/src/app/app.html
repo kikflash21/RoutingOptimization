@@ -1,0 +1,704 @@
+<div class="arc-root">
+
+  <!-- ══ LOADING OVERLAY ══ -->
+  @if (loading()) {
+    <div class="loading-overlay">
+      <div class="loading-card">
+        <div class="spinner"></div>
+        <p class="loading-text">{{ loadingMessage() || 'Chargement...' }}</p>
+        <button class="arc-btn-cancel" (click)="cancelOperation()">Annuler</button>
+      </div>
+    </div>
+  }
+
+  <!-- ══ TOP BAR ══ -->
+  <header class="arc-topbar">
+    <span class="arc-brand">Mobilis CyberCommandes</span>
+    <nav class="arc-stepper">
+      @for (step of wizardSteps; track step.key; let i = $index) {
+        <button class="arc-stepper-item"
+          [class.stepper-active]="wizardStep() === step.key"
+          [class.stepper-done]="isStepCompleted(step.key) && wizardStep() !== step.key"
+          (click)="goToStep(step.key)">
+          <span class="stepper-num">{{ i + 1 }}</span>
+          <span class="stepper-label">{{ step.label }}</span>
+        </button>
+        @if (i < wizardSteps.length - 1) {
+          <span class="stepper-line" [class.line-done]="isStepCompleted(step.key)"></span>
+        }
+      }
+    </nav>
+    <span class="arc-brand-spacer"></span>
+  </header>
+
+  <!-- ══ FULLSCREEN PAGE CONTAINER ══ -->
+  <main class="arc-page">
+
+    <!-- ═══ STEP: CONFIGURATION (merged) ═══ -->
+    @if (wizardStep() === 'configuration') {
+      <section class="arc-section arc-section-full fade-slide">
+        <div class="cfg-two-panels">
+
+          <!-- ══ PANNEAU GAUCHE : Commandes + Équipes ══ -->
+          <div class="cfg-panel">
+
+            <!-- ── 1. Commandes ── -->
+            <div class="cfg-block">
+              <div class="cfg-block-header">
+                <h2>Commandes</h2>
+                <span class="cfg-badge">{{ _selectedCommandes().size }}/{{ _commandes().length }}</span>
+              </div>
+              <div class="arc-quick-select">
+                <span class="quick-label">Sélection rapide :</span>
+                @for (n of [50, 100, 200, 400]; track n) {
+                  <button class="arc-quick-btn" [class.quick-active]="_selectedCommandes().size === n"
+                    (click)="quickSelectCommandes(n)">{{ n }}</button>
+                }
+              </div>
+            </div>
+
+            <!-- ── 2. Équipes ── -->
+            <div class="cfg-block">
+              <div class="cfg-block-header">
+                <h2>Équipes</h2>
+                <span class="cfg-badge">{{ _selectedEquipeIds().size }}/{{ _equipes().length }}</span>
+              </div>
+              <div class="cfg-equipe-slider">
+                <input type="range" class="arc-slider" min="0" [max]="getOperationalEquipeCount()"
+                  [value]="_selectedEquipeIds().size"
+                  (input)="selectEquipesBySlider(+$any($event.target).value)" />
+                <div class="arc-slider-range">
+                  <span>0</span>
+                  <span>{{ getOperationalEquipeCount() }} équipes</span>
+                </div>
+              </div>
+              <div class="cfg-equipe-chips">
+                @for (equipe of getSelectedEquipesOrdered(); track equipe.id) {
+                  <span class="cfg-equipe-chip chip-selected">
+                    <span class="chip-check">✓</span>
+                    {{ equipe.nom }}
+                  </span>
+                } @empty {
+                  <span class="cfg-empty-chip">Aucune équipe sélectionnée</span>
+                }
+              </div>
+            </div>
+
+          </div>
+
+          <!-- ══ PANNEAU DROIT : Algorithmes + Temps max ══ -->
+          <div class="cfg-panel">
+
+            <!-- ── 3. Algorithmes ── -->
+            <div class="cfg-block">
+              <div class="cfg-block-header">
+                <h2>Algorithmes</h2>
+                <span class="cfg-badge">{{ selectedAlgos().size }} sélectionné(s)</span>
+              </div>
+              <div class="arc-algo-grid">
+                <div class="arc-algo-card" [class.algo-checked]="isAlgoSelected(AlgorithmType.KMedoids)"
+                  (click)="toggleAlgo(AlgorithmType.KMedoids)">
+                  <div class="algo-check">
+                    @if (isAlgoSelected(AlgorithmType.KMedoids)) { <span class="check-icon">✓</span> }
+                  </div>
+                  <div class="algo-body">
+                    <strong>K-Medoids</strong>
+                    <div class="algo-pros"><span class="algo-tag tag-pro">+ Tournées économiques (temps réels)</span><span class="algo-tag tag-pro">+ Livre le plus de colis</span></div>
+                    <div class="algo-cons"><span class="algo-tag tag-con">− Calcul plus long</span></div>
+                  </div>
+                </div>
+                <div class="arc-algo-card" [class.algo-checked]="isAlgoSelected(AlgorithmType.KMeans)"
+                  (click)="toggleAlgo(AlgorithmType.KMeans)">
+                  <div class="algo-check">
+                    @if (isAlgoSelected(AlgorithmType.KMeans)) { <span class="check-icon">✓</span> }
+                  </div>
+                  <div class="algo-body">
+                    <strong>K-Means</strong>
+                    <div class="algo-pros"><span class="algo-tag tag-pro">+ Zones de livraison compactes</span><span class="algo-tag tag-pro">+ Bonne répartition géographique</span></div>
+                    <div class="algo-cons"><span class="algo-tag tag-con">− Ne tient pas compte du trafic</span></div>
+                  </div>
+                </div>
+                <div class="arc-algo-card" [class.algo-checked]="isAlgoSelected(AlgorithmType.Greedy)"
+                  (click)="toggleAlgo(AlgorithmType.Greedy)">
+                  <div class="algo-check">
+                    @if (isAlgoSelected(AlgorithmType.Greedy)) { <span class="check-icon">✓</span> }
+                  </div>
+                  <div class="algo-body">
+                    <strong>Greedy</strong>
+                    <div class="algo-pros"><span class="algo-tag tag-pro">+ Résultat instantané</span><span class="algo-tag tag-pro">+ Moins de kilomètres parcourus</span></div>
+                    <div class="algo-cons"><span class="algo-tag tag-con">− Peut livrer moins de colis</span></div>
+                  </div>
+                </div>
+                <div class="arc-algo-card" [class.algo-checked]="isAlgoSelected(AlgorithmType.TwoOpt)"
+                  (click)="toggleAlgo(AlgorithmType.TwoOpt)">
+                  <div class="algo-check">
+                    @if (isAlgoSelected(AlgorithmType.TwoOpt)) { <span class="check-icon">✓</span> }
+                  </div>
+                  <div class="algo-body">
+                    <strong>2-Opt</strong>
+                    <div class="algo-pros"><span class="algo-tag tag-pro">+ Réduit les détours inutiles</span><span class="algo-tag tag-pro">+ Bon rapport coût / colis</span></div>
+                    <div class="algo-cons"><span class="algo-tag tag-con">− Légèrement plus lent que Greedy</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ── 4. Temps max ── -->
+            <div class="cfg-block">
+              <div class="cfg-block-header">
+                <h2>Temps max par véhicule</h2>
+                <span class="cfg-badge">{{ formatSeconds(maxTimeValue()) }}</span>
+              </div>
+              <input type="range" class="arc-slider" min="1800" max="43200" step="900"
+                [value]="maxTimeValue()"
+                (input)="maxTimeValue.set(+$any($event.target).value)" />
+              <div class="arc-slider-range">
+                <span>30min</span>
+                <span>12h</span>
+              </div>
+            </div>
+
+            @if (matrixCached() && hasCacheForCurrentCommandSelection()) {
+              <div class="cfg-cache-hint">
+                <span class="arc-chip chip-ok">Cache matrice disponible</span>
+                <button class="arc-btn-ghost cfg-cache-clear" (click)="clearMatrixCache()">Vider</button>
+              </div>
+            }
+
+          </div>
+        </div>
+      </section>
+    }
+
+    <!-- ═══ STEP: RESULTATS ═══ -->
+    @if (wizardStep() === 'resultats') {
+      <section class="arc-section arc-section-full fade-slide">
+
+        <!-- Algorithm tabs + run missing -->
+        <div class="res-topbar">
+          @if (algoComparisons().length > 1) {
+            <div class="res-tabs">
+              @for (comp of algoComparisons(); track comp.type; let ti = $index) {
+                <button class="res-tab" [class.res-tab-active]="activeResultView() === comp.type"
+                  (click)="switchResultTab(comp.type)">
+                  <span class="res-tab-dot" [style.background]="getClusterColor(ti)"></span>
+                  {{ comp.name }}
+                  <span class="res-tab-ms">{{ comp.computeTimeMs }}ms</span>
+                </button>
+              }
+            </div>
+          }
+          @if (!isAlgoRan(AlgorithmType.KMedoids) || !isAlgoRan(AlgorithmType.KMeans) || !isAlgoRan(AlgorithmType.Greedy) || !isAlgoRan(AlgorithmType.TwoOpt)) {
+            <div class="res-run-more">
+              @if (!isAlgoRan(AlgorithmType.KMedoids)) {
+                <button class="res-chip" (click)="runSingleAlgo(AlgorithmType.KMedoids)">+ K-Medoids</button>
+              }
+              @if (!isAlgoRan(AlgorithmType.KMeans)) {
+                <button class="res-chip" (click)="runSingleAlgo(AlgorithmType.KMeans)">+ K-Means</button>
+              }
+              @if (!isAlgoRan(AlgorithmType.Greedy)) {
+                <button class="res-chip" (click)="runSingleAlgo(AlgorithmType.Greedy)">+ Greedy</button>
+              }
+              @if (!isAlgoRan(AlgorithmType.TwoOpt)) {
+                <button class="res-chip" (click)="runSingleAlgo(AlgorithmType.TwoOpt)">+ 2-Opt</button>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Compare mode retiré à la demande -->
+
+        <!-- Button to open comparison modal -->
+        @if (algoComparisons().length > 1) {
+          <button class="arc-btn-compare" (click)="showCompareModal.set(true)">
+            Comparer les algorithmes
+          </button>
+        }
+
+        <!-- KPI cards for active algo -->
+        @for (comp of algoComparisons(); track comp.type) {
+          @if (activeResultView() === comp.type) {
+            <div class="res-kpi-row fade-slide">
+              <div class="res-kpi">
+                <div class="res-kpi-data">
+                  <span class="res-kpi-val arc-tooltip-wrap">
+                    {{ comp.totalCost | number:'1.2-2' }} €
+                    <span class="arc-tooltip-box">{{ getCostTooltip(comp) }}</span>
+                  </span>
+                  <span class="res-kpi-lbl">Coût total estimé</span>
+                </div>
+              </div>
+              <div class="res-kpi">
+                <div class="res-kpi-data">
+                  <span class="res-kpi-val">{{ comp.costs.length }}</span>
+                  <span class="res-kpi-lbl">Tournées</span>
+                </div>
+              </div>
+              <div class="res-kpi">
+                <div class="res-kpi-data">
+                  <span class="res-kpi-val">{{ formatDuration(getTotalDurationForComp(comp)) }}</span>
+                  <span class="res-kpi-lbl">Temps total tournées</span>
+                </div>
+              </div>
+              <div class="res-kpi">
+                <div class="res-kpi-data">
+                  <span class="res-kpi-val">{{ comp.costs.reduce(reduceDist, 0) | number:'1.1-1' }} km</span>
+                  <span class="res-kpi-lbl">Distance totale</span>
+                </div>
+              </div>
+              <div class="res-kpi res-kpi-assign">
+                <div class="res-kpi-data" style="flex:1;min-width:0">
+                  @let stats = getAssignedStatsForComp(comp);
+                  <span class="res-kpi-val" [style.color]="getStatColor(stats.rate)">
+                    {{ stats.assigned }} / {{ stats.total }}
+                  </span>
+                  <span class="res-kpi-lbl">Colis planifiés</span>
+                  <div class="res-kpi-bar-track">
+                    <div class="res-kpi-bar-fill"
+                      [style.width.%]="stats.rate * 100"
+                      [style.background]="getStatColor(stats.rate)">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
+        }
+
+        <!-- Two panels side by side: clusters + map -->
+        <div class="res-panels">
+          <!-- Left: cost summary + editable clusters -->
+          <div class="res-panel-clusters">
+
+            <!-- Cost summary table -->
+            @for (comp of algoComparisons(); track comp.type) {
+              @if (activeResultView() === comp.type) {
+                <div class="res-cluster-table fade-slide">
+                  <div class="res-table-header">
+                    <span>Tournée</span>
+                    <span>Temps</span>
+                    <span>Distance</span>
+                    <span>Carburant</span>
+                    <span>Coût</span>
+                  </div>
+                  @for (cost of comp.costs; track $index; let i = $index) {
+                    <div class="res-table-row">
+                      <span class="res-row-label">
+                        <span class="res-color-dot" [style.background]="getClusterColor(i)"></span>
+                        @if (getEquipeForCluster(i); as equipe) {
+                          {{ equipe.nom }}
+                        } @else {
+                          Tournée {{ i + 1 }}
+                        }
+                      </span>
+                      <span>{{ formatDuration(getClusterDuration(i)) }}</span>
+                      <span>{{ cost.distanceKm }} km</span>
+                      <span>{{ cost.fuelLiters }} L</span>
+                      <span class="res-row-cost">{{ cost.totalCost | number:'1.2-2' }} €</span>
+                    </div>
+                  }
+                </div>
+              }
+            }
+
+            <!-- Editable clusters -->
+            @if (_editableClusters(); as clusters) {
+              <div class="ec-section">
+                <div class="ec-section-title">
+                  <span>Édition des tournées</span>
+                  @if (getUnassignedCount() > 0) {
+                    <span class="ec-unassigned-badge">{{ getUnassignedCount() }} non assigné(s)</span>
+                  }
+                </div>
+
+                @for (cluster of clusters; track $index; let i = $index) {
+                  <div class="ec-cluster-card" [class.ec-editing]="_editingClusterIdx() === i">
+                    <div class="ec-cluster-header">
+                      <span class="res-color-dot" [style.background]="getClusterColor(i)"></span>
+                      <div class="ec-cluster-name">
+                        @if (getEquipeForCluster(i); as equipe) {
+                          <strong>{{ equipe.nom }}</strong>
+                        } @else {
+                          <strong>Tournée {{ i + 1 }}</strong>
+                        }
+                        <span class="ec-count">{{ cluster.commandeIds.length }} colis</span>
+                      </div>
+                      <div class="ec-cluster-acts">
+                        <label class="res-toggle" title="Afficher/masquer sur la carte">
+                          <input type="checkbox"
+                            [checked]="isDeliveryPersonVisible(i + 1)"
+                            (change)="toggleDeliveryPerson(i + 1)" />
+                          <span class="res-toggle-slider"></span>
+                        </label>
+                        @if (_editingClusterIdx() === i) {
+                          @if (_editingClusterDirty()) {
+                            <button class="arc-btn-sm ec-recalc-btn" (click)="recalcEditingClusterRoute()">
+                              &#8634; Recalculer le tracé
+                            </button>
+                          }
+                          <button class="arc-btn-sm ec-done-btn" (click)="stopEditCluster()">✓ Terminer</button>
+                        } @else {
+                          <button class="arc-btn-sm" (click)="startEditCluster(i)">Éditer</button>
+                        }
+                      </div>
+                    </div>
+
+                    @if (_editingClusterIdx() === i) {
+                      <div class="ec-edit-body">
+                        <div class="ec-map-hint">
+                          <span class="ec-hint-title">Cliquez sur un point de la carte :</span>
+                          <span class="ec-hint-item">
+                            <svg class="ec-hint-cross" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                              <path d="M5 5 L15 15 M15 5 L5 15" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
+                              <path d="M5 5 L15 15 M15 5 L5 15" stroke="#f59e0b" stroke-width="3.5" stroke-linecap="round"/>
+                            </svg>
+                            point non assigné → <strong>l'ajouter à cette tournée</strong>
+                          </span>
+                          <span class="ec-hint-item">
+                            <span class="ec-hint-dot" [style.background]="getClusterColor(i)"></span>
+                            point déjà dans cette tournée → <strong>le retirer</strong>
+                          </span>
+                          <span class="ec-hint-item">
+                            <span class="ec-hint-dot ec-hint-other-multi"></span>
+                            point d'une autre tournée → <strong>le déplacer ici</strong>
+                          </span>
+                        </div>
+                        <div class="ec-cmd-list">
+                          @for (cmdId of cluster.commandeIds; track cmdId; let ci = $index) {
+                            <div class="ec-cmd-row">
+                              <span class="ec-cmd-num">{{ ci + 1 }}</span>
+                              @if (getCommandeDetails(cmdId); as cmd) {
+                                <div class="ec-cmd-info">
+                                  <span class="ec-cmd-name">#{{ cmd.id }} — {{ cmd.prenomClient }} {{ cmd.nomClient }}</span>
+                                  <span class="ec-cmd-addr">{{ cmd.adresseComplete }}</span>
+                                </div>
+                              } @else {
+                                <div class="ec-cmd-info">
+                                  <span class="ec-cmd-name">#{{ cmdId }}</span>
+                                </div>
+                              }
+                              <div class="ec-cmd-btns">
+                                <button class="arc-btn-icon" (click)="moveClusterCmdUp(i, ci)" [disabled]="ci === 0">▲</button>
+                                <button class="arc-btn-icon" (click)="moveClusterCmdDown(i, ci)" [disabled]="ci === cluster.commandeIds.length - 1">▼</button>
+                                <button class="arc-btn-icon arc-btn-danger" (click)="removeFromCluster(i, ci)" title="Retirer de cette tournée">✕</button>
+                              </div>
+                            </div>
+                          }
+                          @empty {
+                            <p class="ec-empty">Aucun colis — ajoutez-en depuis la carte</p>
+                          }
+                        </div>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            }
+
+            <button class="arc-btn-primary res-save-btn" (click)="saveTournee()" [disabled]="!_editableClusters()">
+              Enregistrer les tournées
+            </button>
+          </div>
+
+          <!-- Right: map -->
+          <div class="res-panel-map">
+            @if (_editingClusterIdx() !== null) {
+              <div class="res-edit-banner">
+                <span>
+                  Mode édition :
+                  @if (getEquipeForCluster(_editingClusterIdx()!); as equipe) {
+                    <strong>{{ equipe.nom }}</strong>
+                  } @else {
+                    <strong>Tournée {{ _editingClusterIdx()! + 1 }}</strong>
+                  }
+                  — cliquez sur <span class="banner-dot"></span> pour ajouter un point
+                </span>
+                <button class="arc-btn-sm" (click)="stopEditCluster()">Quitter</button>
+              </div>
+            }
+            <div class="res-map-container" leaflet
+              [leafletOptions]="options"
+              [leafletLayers]="layers()">
+            </div>
+            <div class="res-map-controls">
+              <button class="arc-toggle-pill" [class.pill-active]="_showMarkers()"
+                (click)="toggleMarkers()">
+                <span class="pill-dot"></span>
+                Points de livraison
+              </button>
+              <div class="res-map-legend" aria-label="Légende de la carte">
+                <span class="legend-item">
+                  <svg class="legend-depot" viewBox="0 0 28 36" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M14 0C6.27 0 0 6.27 0 14c0 9.5 12.4 20.7 13.13 21.35a1.3 1.3 0 0 0 1.74 0C15.6 34.7 28 23.5 28 14 28 6.27 21.73 0 14 0z" fill="#ef4444" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+                    <path d="M14 7.2 7.2 12.5v7.3a1.3 1.3 0 0 0 1.3 1.3h3.4v-4.5h4.2v4.5h3.4a1.3 1.3 0 0 0 1.3-1.3v-7.3L14 7.2z" fill="#ffffff"/>
+                  </svg>
+                  Entrepôt
+                </span>
+                <span class="legend-item">
+                  <svg class="legend-cross" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M5 5 L15 15 M15 5 L5 15" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
+                    <path d="M5 5 L15 15 M15 5 L5 15" stroke="#f59e0b" stroke-width="3.5" stroke-linecap="round"/>
+                  </svg>
+                  Non assigné
+                </span>
+                <span class="legend-item"><span class="legend-route-dot"></span> Tournée</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+    }
+
+    <!-- ═══ STEP: TOURNEES ═══ -->
+    @if (wizardStep() === 'tournees') {
+      <section class="arc-section fade-slide">
+        <div class="arc-hero">
+          <div style="display:flex;justify-content:space-between;align-items:center;width:100%">
+            <div>
+              <h1>Tournées</h1>
+              <p class="arc-sub">Visualisez, modifiez ou supprimez vos tournées</p>
+            </div>
+            <div style="display:flex;gap:.5rem">
+              @if (_tournees().length > 0) {
+                <button class="arc-btn-danger-soft" (click)="deleteAllTournees()">Tout supprimer</button>
+              }
+              <button class="arc-btn-ghost" (click)="refreshTournees()">Actualiser</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="arc-tournee-list">
+          @for (tournee of _tournees(); track tournee.id) {
+            <div class="arc-tournee-card">
+              <div class="tournee-top">
+                <div class="tournee-info">
+                  <strong>Tournée #{{ tournee.id }} — {{ tournee.equipeNom }}</strong>
+                  <span class="tournee-meta">
+                    {{ formatDuration(tournee.dureeTotal) }}
+                    · {{ tournee.camionPlaque }}
+                    · {{ tournee.commandeIdsOrdonnees.length || 0 }} colis
+                  </span>
+                  <span class="tournee-dates">
+                    {{ formatDate(tournee.debutTournee) }} → {{ formatDate(tournee.finTournee) }}
+                  </span>
+                </div>
+                <div class="tournee-actions">
+                  <button class="arc-btn-sm arc-btn-danger" (click)="deleteExistingTournee(tournee.id)">Supprimer</button>
+                </div>
+              </div>
+
+              @if (tournee.commandeIdsOrdonnees && tournee.commandeIdsOrdonnees.length > 0) {
+                <details class="arc-details">
+                  <summary>Voir les {{ tournee.commandeIdsOrdonnees.length }} colis</summary>
+                  <div class="arc-colis-list">
+                    @for (cmdId of tournee.commandeIdsOrdonnees; track cmdId; let i = $index) {
+                      <div class="arc-colis-row">
+                        <span class="colis-num">{{ i + 1 }}</span>
+                        @if (getCommandeDetails(cmdId); as cmd) {
+                          <div class="colis-info">
+                            <strong>#{{ cmd.id }} - {{ cmd.prenomClient }} {{ cmd.nomClient }}</strong>
+                            <span>{{ cmd.adresseComplete }}</span>
+                          </div>
+                        } @else {
+                          <span>Chargement #{{ cmdId }}...</span>
+                        }
+                      </div>
+                    }
+                  </div>
+                </details>
+              }
+            </div>
+          }
+          @empty { <p class="arc-empty">Aucune tournée enregistrée.</p> }
+        </div>
+
+        <div class="arc-action-row" style="margin-top:2rem">
+          <button class="arc-btn-ghost" (click)="goToStep('configuration')">Nouvelle optimisation</button>
+        </div>
+      </section>
+    }
+
+    @if (wizardStep() === 'configuration') {
+      <!-- ══ INLINE NAVIGATION ══ -->
+      <div class="arc-step-nav">
+        <div></div>
+        <span class="arc-nav-label">{{ wizardSteps[getStepIndex(wizardStep())].icon }} {{ wizardSteps[getStepIndex(wizardStep())].label }}</span>
+        <button class="arc-nav-btn nav-next" (click)="nextStep()"
+          [disabled]="isNextDisabled()">
+          {{ getNextButtonLabel() }}
+        </button>
+      </div>
+    }
+
+  </main>
+
+</div>
+
+<!-- ══ COMPARISON MODAL ══ -->
+@if (showCompareModal()) {
+  <div class="cmp-modal-overlay" (click)="showCompareModal.set(false)">
+    <div class="cmp-modal-panel" (click)="$event.stopPropagation()">
+      <div class="cmp-modal-header">
+        <h3>Comparaison des algorithmes</h3>
+        <button class="cmp-modal-close" (click)="showCompareModal.set(false)">✕</button>
+      </div>
+
+      <div class="cmp-table-wrap">
+        <table class="cmp-table">
+          <thead>
+            <tr>
+              <th class="cmp-metric-col">Métrique</th>
+              @for (comp of algoComparisons(); track comp.type) {
+                <th class="cmp-algo-col"
+                    [class.cmp-algo-active]="activeResultView() === comp.type"
+                    (click)="switchResultTab(comp.type); showCompareModal.set(false)">
+                  {{ comp.name }}
+                </th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Score global -->
+            <tr class="cmp-score-row">
+              <td class="cmp-metric">Score</td>
+              @for (comp of algoComparisons(); track comp.type) {
+                <td [class.cmp-algo-active]="activeResultView() === comp.type">
+                  @let score = getAlgoScore(comp);
+                  <span class="cmp-score" [class.cmp-best]="isBestScore(comp)"
+                        [style.color]="getStatColor(score / 100)">
+                    {{ score }} / 100
+                  </span>
+                </td>
+              }
+            </tr>
+            <!-- Coût total -->
+            <tr>
+              <td class="cmp-metric">Coût total</td>
+              @for (comp of algoComparisons(); track comp.type) {
+                <td [class.cmp-algo-active]="activeResultView() === comp.type">
+                  <span class="cmp-val" [class.cmp-best]="isBestValue('cost', comp)">
+                    {{ comp.totalCost | number:'1.2-2' }} €
+                  </span>
+                </td>
+              }
+            </tr>
+            <!-- Coût / colis livré -->
+            <tr class="cmp-per-row">
+              <td class="cmp-metric">Coût / colis livré</td>
+              @for (comp of algoComparisons(); track comp.type) {
+                <td [class.cmp-algo-active]="activeResultView() === comp.type">
+                  @let costPer = perDelivered(comp.totalCost, comp);
+                  <span class="cmp-val" [class.cmp-best]="isBestValue('cost', comp)">
+                    {{ costPer | number:'1.2-2' }} €
+                  </span>
+                </td>
+              }
+            </tr>
+            <!-- Tournées -->
+            <tr>
+              <td class="cmp-metric">Tournées</td>
+              @for (comp of algoComparisons(); track comp.type) {
+                <td [class.cmp-algo-active]="activeResultView() === comp.type">
+                  <span class="cmp-val">{{ comp.costs.length }}</span>
+                </td>
+              }
+            </tr>
+            <!-- Temps total -->
+            <tr>
+              <td class="cmp-metric">Temps total</td>
+              @for (comp of algoComparisons(); track comp.type) {
+                <td [class.cmp-algo-active]="activeResultView() === comp.type">
+                  <span class="cmp-val" [class.cmp-best]="isBestValue('duration', comp)">
+                    {{ formatDuration(getTotalDurationForComp(comp)) }}
+                  </span>
+                </td>
+              }
+            </tr>
+            <!-- Temps / colis livré -->
+            <tr class="cmp-per-row">
+              <td class="cmp-metric">Temps / colis livré</td>
+              @for (comp of algoComparisons(); track comp.type) {
+                <td [class.cmp-algo-active]="activeResultView() === comp.type">
+                  @let per = perDelivered(getTotalDurationForComp(comp), comp);
+                  <span class="cmp-val" [class.cmp-best]="isBestValue('duration', comp)">
+                    {{ formatDuration(per) }}
+                  </span>
+                </td>
+              }
+            </tr>
+            <!-- Distance totale -->
+            <tr>
+              <td class="cmp-metric">Distance totale</td>
+              @for (comp of algoComparisons(); track comp.type) {
+                <td [class.cmp-algo-active]="activeResultView() === comp.type">
+                  <span class="cmp-val" [class.cmp-best]="isBestValue('distance', comp)">
+                    {{ comp.costs.reduce(reduceDist, 0) | number:'1.1-1' }} km
+                  </span>
+                </td>
+              }
+            </tr>
+            <!-- Distance / colis livré -->
+            <tr class="cmp-per-row">
+              <td class="cmp-metric">Distance / colis livré</td>
+              @for (comp of algoComparisons(); track comp.type) {
+                <td [class.cmp-algo-active]="activeResultView() === comp.type">
+                  @let per = perDelivered(comp.costs.reduce(reduceDist, 0), comp);
+                  <span class="cmp-val" [class.cmp-best]="isBestValue('distance', comp)">
+                    {{ per | number:'1.1-1' }} km
+                  </span>
+                </td>
+              }
+            </tr>
+            <!-- Carburant -->
+            <tr>
+              <td class="cmp-metric">Carburant</td>
+              @for (comp of algoComparisons(); track comp.type) {
+                <td [class.cmp-algo-active]="activeResultView() === comp.type">
+                  <span class="cmp-val" [class.cmp-best]="isBestValue('fuel', comp)">
+                    {{ comp.costs.reduce(reduceFuel, 0) | number:'1.1-1' }} L
+                  </span>
+                </td>
+              }
+            </tr>
+            <!-- Carburant / colis livré -->
+            <tr class="cmp-per-row">
+              <td class="cmp-metric">Carburant / colis livré</td>
+              @for (comp of algoComparisons(); track comp.type) {
+                <td [class.cmp-algo-active]="activeResultView() === comp.type">
+                  @let per = perDelivered(comp.costs.reduce(reduceFuel, 0), comp);
+                  <span class="cmp-val" [class.cmp-best]="isBestValue('fuel', comp)">
+                    {{ per | number:'1.2-2' }} L
+                  </span>
+                </td>
+              }
+            </tr>
+            <!-- Taux d'affectation -->
+            <tr>
+              <td class="cmp-metric">Affectation</td>
+              @for (comp of algoComparisons(); track comp.type) {
+                <td [class.cmp-algo-active]="activeResultView() === comp.type">
+                  <span class="cmp-val">
+                    {{ getAssignedStatsForComp(comp).assigned }}/{{ getAssignedStatsForComp(comp).total }}
+                    ({{ getAssignedStatsForComp(comp).rate | percent:'1.0-0' }})
+                  </span>
+                </td>
+              }
+            </tr>
+            <!-- Temps de calcul -->
+            <tr>
+              <td class="cmp-metric">Temps calcul</td>
+              @for (comp of algoComparisons(); track comp.type) {
+                <td [class.cmp-algo-active]="activeResultView() === comp.type">
+                  <span class="cmp-val" [class.cmp-best]="isBestValue('computeTime', comp)">
+                    {{ comp.computeTimeMs | number:'1.0-0' }} ms
+                  </span>
+                </td>
+              }
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+}
