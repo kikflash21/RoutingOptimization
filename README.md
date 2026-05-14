@@ -82,3 +82,5 @@ L’objectif principal était d’améliorer les itinéraires de livraison en pr
 3. Implémenter et évaluer des algorithmes de clustering (K-means & K-medoids).
 4. Développer et optimiser des solutions prenant en compte les limites métier (comme le nombre de véhicules ou de stops).
 5. Présenter une visualisation finale interactive (map + statistiques).
+
+Projet réalisé par groupe 6 étudiants
